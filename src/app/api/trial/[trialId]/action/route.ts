@@ -63,8 +63,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
          state.subPhase = 'DIRECT_WITNESS_ANSWERING';
          nextSpeaker = currentWitness.name;
          nextRole = 'Witness';
-         sysPrompt = `You are ${currentWitness.name}, a witness. Personality: ${currentWitness.personality}.`;
-         promptText = `Answer the question: "${state.lastAction?.text}"`;
+         sysPrompt = `You are ${currentWitness.name}, a witness. Case summary: ${caseDef.summary}. Personality: ${currentWitness.personality}. Your overall testimony is: ${currentWitness.testimony.map((t:any) => t.text).join(' ')}`;
+         promptText = `The prosecutor asks: "${state.lastAction?.text}". Answer in character.`;
          mockOutput = mockPrefix + `Mock answer from ${currentWitness.name}.`;
       } else if (state.subPhase === 'DIRECT_WITNESS_ANSWERED') {
          state.directQuestionCount = (state.directQuestionCount || 0) + 1;
@@ -99,8 +99,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
            state.subPhase = 'DIRECT_WITNESS_ANSWERING';
            nextSpeaker = currentWitness.name;
            nextRole = 'Witness';
-           sysPrompt = `You are ${currentWitness.name}, a witness.`;
-           promptText = `Answer the question: "${state.lastAction?.text}"`;
+           sysPrompt = `You are ${currentWitness.name}, a witness. Case summary: ${caseDef.summary}. Personality: ${currentWitness.personality}.`;
+           promptText = `The defense objected, but the judge overruled it. Please answer the prosecutor's question: "${state.lastAction?.text}"`;
            mockOutput = mockPrefix + `Mock answer from ${currentWitness.name}.`;
          }
       } else if (state.subPhase === 'CROSS_DONE') {
@@ -124,8 +124,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       state.subPhase = 'RULING_STREAMING';
       nextSpeaker = 'Judge';
       nextRole = 'Judge';
-      sysPrompt = `You are the Judge.`;
-      promptText = `The defense objected with ${payload.type} to: "${state.lastAction?.text}". Rule on it.`;
+      sysPrompt = `You are the Judge in this trial. Case summary: ${caseDef.summary}.`;
+      promptText = `The defense objected with ${payload.type} to the prosecutor's question: "${state.lastAction?.text}". Briefly rule on it and explain why.`;
       const isSustained = payload.type === 'Leading';
       state.lastRuling = isSustained ? 'Sustained' : 'Overruled';
       if (isSustained) state.objectionsSustained = (state.objectionsSustained || 0) + 1;
@@ -133,12 +133,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     } else if (state.subPhase.startsWith('CROSS')) {
       if (action === 'PRESS_STATEMENT') {
          state.actionsLeft--;
-         saveTranscript(trialId, 'Player', 'Defense', `I press you on: ${payload.statementId}`, state.phase);
+         const stmt = currentWitness.testimony.find((t: any) => t.id === payload.statementId);
+         saveTranscript(trialId, 'Player', 'Defense', `I press you on your statement: "${stmt.text}"`, state.phase);
          state.subPhase = 'CROSS_WITNESS_ANSWERING';
          nextSpeaker = currentWitness.name;
          nextRole = 'Witness';
-         sysPrompt = `You are ${currentWitness.name}, a witness.`;
-         promptText = `Elaborate on statement ${payload.statementId}`;
+         sysPrompt = `You are ${currentWitness.name}, a witness. Case summary: ${caseDef.summary}. Personality: ${currentWitness.personality}.`;
+         promptText = `The defense is aggressively pressing you to elaborate on your testimony: "${stmt.text}". Defend your statement or elaborate in character.`;
          mockOutput = mockPrefix + `Mock answer from ${currentWitness.name}.`;
       } else if (action === 'ASK_QUESTION') {
          state.actionsLeft--;
@@ -148,38 +149,38 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
            // Prosecutor objects
            state.subPhase = 'RULING_STREAMING';
            state.lastRuling = 'Sustained';
-           saveTranscript(trialId, 'Prosecutor', 'Prosecutor', `Objection! Relevance`, state.phase);
+           saveTranscript(trialId, 'Prosecutor', 'Prosecutor', `Objection! Relevance.`, state.phase);
            nextSpeaker = 'Judge';
            nextRole = 'Judge';
-           sysPrompt = `You are the Judge.`;
-           promptText = `The prosecutor objected to defense's question.`;
+           sysPrompt = `You are the Judge. Case summary: ${caseDef.summary}.`;
+           promptText = `The prosecutor objected to the defense's question: "${payload.text}". Briefly rule on it (Sustained).`;
            mockOutput = mockPrefix + `Sustained`;
          } else {
            state.subPhase = 'CROSS_WITNESS_ANSWERING';
            nextSpeaker = currentWitness.name;
            nextRole = 'Witness';
-           sysPrompt = `You are ${currentWitness.name}, a witness.`;
-           promptText = `Answer: ${payload.text}`;
+           sysPrompt = `You are ${currentWitness.name}, a witness. Case summary: ${caseDef.summary}. Personality: ${currentWitness.personality}.`;
+           promptText = `The defense asks you in cross-examination: "${payload.text}". Answer them in character.`;
            mockOutput = mockPrefix + `Mock answer from ${currentWitness.name}.`;
          }
       } else if (action === 'PRESENT_EVIDENCE') {
-         // doesn't spend action unless it's a re-presentation of already found contradiction, actually spec says:
-         // "A contradiction can be scored only once. Re-presenting an already-found contradiction has no effect and does not spend an action."
          const { statementId, evidenceId } = payload;
          const isContradiction = caseDef.contradictions.find((c: any) => c.statement === statementId && c.evidence === evidenceId);
+         const stmt = currentWitness.testimony.find((t: any) => t.id === statementId);
+         const ev = caseDef.evidence.find((e: any) => e.id === evidenceId);
          
          if (!state.contradictionsFound) state.contradictionsFound = [];
 
          if (isContradiction) {
            if (!state.contradictionsFound.includes(statementId)) {
              state.contradictionsFound.push(statementId);
-             state.actionsLeft--; // Wait, does presenting valid contradiction spend an action? "Each action is one of: Press... Present... Ask". Yes.
+             state.actionsLeft--;
            }
            state.subPhase = 'CROSS_WITNESS_ANSWERING';
            nextSpeaker = currentWitness.name;
            nextRole = 'Witness';
-           sysPrompt = `You are ${currentWitness.name}, a witness.`;
-           promptText = `The defense presented ${evidenceId} contradicting your statement. React.`;
+           sysPrompt = `You are ${currentWitness.name}, a witness. Case summary: ${caseDef.summary}. Personality: ${currentWitness.personality}.`;
+           promptText = `The defense presented evidence "${ev.title}: ${ev.description}" proving it contradicts your statement "${stmt.text}". React to being caught in this contradiction.`;
            mockOutput = mockPrefix + `Mock answer from ${currentWitness.name}.`;
          } else {
            state.actionsLeft--;
@@ -290,6 +291,9 @@ function streamResponse(trialId: string, state: any, speaker: string, role: stri
         saveTranscript(trialId, speaker, role, fullText.trim(), state.phase);
         
         if (state.subPhase === 'OPENING_PROSECUTOR_STREAMING') state.subPhase = 'OPENING_PROSECUTOR_DONE';
+        else if (state.subPhase === 'DIRECT_PROSECUTOR_ASKED') {
+          state.lastAction.text = fullText.trim();
+        }
         else if (state.subPhase === 'RULING_STREAMING') state.subPhase = 'RULING_DONE';
         else if (state.subPhase === 'DIRECT_WITNESS_ANSWERING') state.subPhase = 'DIRECT_WITNESS_ANSWERED';
         else if (state.subPhase === 'CROSS_WITNESS_ANSWERING' || state.subPhase === 'CROSS_JUDGE_WARNING') {
