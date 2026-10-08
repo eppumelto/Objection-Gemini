@@ -262,14 +262,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 // Helper for automated prosecutor actions
 async function executeAutoAction(trialId: string, state: any, caseDef: any, mockPrefix: string) {
   const currentWitness = caseDef.witnesses[state.witnessIndex];
+  const qNum = (state.directQuestionCount || 0) + 1;
   state.subPhase = 'DIRECT_PROSECUTOR_ASKED';
-  state.lastAction = { type: 'PROSECUTOR_QUESTION', text: `Question ${state.directQuestionCount + 1}` };
+  state.lastAction = { type: 'PROSECUTOR_QUESTION', text: `Question ${qNum}` };
   
   const nextSpeaker = 'Prosecutor';
   const nextRole = 'Prosecutor';
   const sysPrompt = `You are the Prosecutor.`;
-  const promptText = `Ask direct question ${state.directQuestionCount + 1} to ${currentWitness.name}.`;
-  const mockOutput = mockPrefix + `Mock direct question ${state.directQuestionCount + 1} to ${currentWitness.name}.`;
+  const promptText = `Ask direct question ${qNum} to ${currentWitness.name}.`;
+  const mockOutput = mockPrefix + `Mock direct question ${qNum} to ${currentWitness.name}.`;
   
   saveTrialState(trialId, state);
   return streamResponse(trialId, state, nextSpeaker, nextRole, sysPrompt, promptText, mockOutput);

@@ -152,12 +152,17 @@ export default function CourtroomClient({ trial, caseData, initialTranscript }: 
 
             {/* General Continue Button */}
             {['OPENING_PROSECUTOR_DONE', 'DIRECT_WITNESS_ANSWERED', 'RULING_DONE', 'CROSS_DONE'].includes(state.subPhase) && (
-              <button
-                data-testid="continue"
-                disabled={isStreaming}
-                onClick={() => performAction('CONTINUE')}
-                className="rounded bg-green-600 px-4 py-2 text-white disabled:opacity-50"
-              >Continue</button>
+              <div className="flex flex-col gap-2">
+                {state.subPhase === 'RULING_DONE' && state.lastRuling && (
+                  <div data-testid="ruling" className="font-bold text-red-600">Ruling: {state.lastRuling}</div>
+                )}
+                <button
+                  data-testid="continue"
+                  disabled={isStreaming}
+                  onClick={() => performAction('CONTINUE')}
+                  className="w-max rounded bg-green-600 px-4 py-2 text-white disabled:opacity-50"
+                >Continue</button>
+              </div>
             )}
 
             {/* Direct Exam Objections */}
