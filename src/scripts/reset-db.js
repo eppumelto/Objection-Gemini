@@ -45,6 +45,7 @@ db.exec(`
     score INTEGER DEFAULT 0,
     verdict TEXT, -- 'Guilty' or 'Not guilty' or NULL
     createdAt INTEGER NOT NULL,
+    updatedAt INTEGER,
     FOREIGN KEY(userId) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY(caseInternalId) REFERENCES cases(internalId) ON DELETE CASCADE
   );

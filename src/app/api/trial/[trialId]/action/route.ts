@@ -291,6 +291,7 @@ function streamResponse(trialId: string, state: any, speaker: string, role: stri
         
         if (state.subPhase === 'OPENING_PROSECUTOR_STREAMING') state.subPhase = 'OPENING_PROSECUTOR_DONE';
         else if (state.subPhase === 'RULING_STREAMING') state.subPhase = 'RULING_DONE';
+        else if (state.subPhase === 'DIRECT_WITNESS_ANSWERING') state.subPhase = 'DIRECT_WITNESS_ANSWERED';
         else if (state.subPhase === 'CROSS_WITNESS_ANSWERING' || state.subPhase === 'CROSS_JUDGE_WARNING') {
           if (state.actionsLeft <= 0) state.subPhase = 'CROSS_DONE';
         }
