@@ -4,7 +4,10 @@ import db from '@/lib/db';
 
 export default async function Stats() {
   const session = await getSession();
-  if (!session) return null;
+  if (!session) {
+    const { redirect } = await import('next/navigation');
+    redirect('/login');
+  }
 
   const trials = db.prepare('SELECT score, verdict, state FROM trials WHERE userId = ? AND verdict IS NOT NULL').all(session.id) as any[];
 

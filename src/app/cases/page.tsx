@@ -5,7 +5,10 @@ import Link from 'next/link';
 
 export default async function CasesLibrary() {
   const session = await getSession();
-  if (!session) return null;
+  if (!session) {
+    const { redirect } = await import('next/navigation');
+    redirect('/login');
+  }
 
   // Fetch all cases (built-in and user-created)
   const cases = db.prepare('SELECT internalId, id, title, charge, witnessCount FROM cases WHERE userId IS NULL OR userId = ?').all(session.id) as any[];

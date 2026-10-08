@@ -4,7 +4,10 @@ import db from '@/lib/db';
 
 export default async function History() {
   const session = await getSession();
-  if (!session) return null;
+  if (!session) {
+    const { redirect } = await import('next/navigation');
+    redirect('/login');
+  }
 
   const trials = db.prepare('SELECT t.*, c.title FROM trials t JOIN cases c ON t.caseInternalId = c.internalId WHERE t.userId = ? ORDER BY t.createdAt DESC').all(session.id) as any[];
 
